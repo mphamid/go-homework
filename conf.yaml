@@ -1,0 +1,6 @@
+server: #must exist
+  host: localhost #optional, defaults to 'localhost'
+  port: 8080 #required, must be a number in valid ports range
+rate_limits: #optional
+  ip_requests_per_sec: 900 #required, must be <1000 and >60
+  otp_sms_interval_sec: 120 # optional, must be <300 and >=60
