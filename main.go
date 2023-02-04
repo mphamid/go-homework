@@ -14,11 +14,14 @@ type parameter struct {
 }
 
 func main() {
-	file, err := os.ReadFile("conf.yaml")
-	if err != nil {
-		stopWithError("yaml file not found")
-	}
-	yamlContent := removeComment(string(file))
+	log.Println("Start Reading yaml file")
+	yamlMap := readYaml("conf.yaml")
+	log.Println("Configuration content is OK")
+	log.Println(yamlMap)
+}
+
+func readYaml(fileName string) map[string][]parameter {
+	yamlContent := getYamlContent(fileName)
 	yamlMap := findSections(yamlContent)
 	server, serverFound := yamlMap["server"]
 	if serverFound == false {
@@ -33,9 +36,7 @@ func main() {
 	if rateLimitsFound == true {
 		validateRateLimit(rateLimits)
 	}
-
-	log.Println("Configuration file is OK")
-	log.Println(yamlMap)
+	return yamlMap
 }
 func findParameter(limits []parameter, pname string) parameter {
 	for _, limit := range limits {
@@ -49,24 +50,24 @@ func findParameter(limits []parameter, pname string) parameter {
 func validateRateLimit(limits []parameter) {
 	ipParameter := findParameter(limits, "ip_requests_per_sec")
 	if ipParameter.name == "" {
-		stopWithError("ip_requests_per_sec parameter is required in rate_limits section")
+		stopWithError("`ip_requests_per_sec` parameter is required in `rate_limits` section")
 	} else {
 		ipValue, err := strconv.Atoi(ipParameter.value)
 		if err != nil {
-			stopWithError("ip_requests_per_sec parameter is not a number")
+			stopWithError("`ip_requests_per_sec` parameter is not a number")
 		}
 		if ipValue > 1000 || ipValue < 60 {
-			stopWithError("ip_requests_per_sec parameter must be <1000 and >60")
+			stopWithError("`ip_requests_per_sec` parameter must be <1000 and >60")
 		}
 	}
 	otpParameter := findParameter(limits, "otp_sms_interval_sec")
 	if otpParameter.name != "" {
 		otpValue, err := strconv.Atoi(otpParameter.value)
 		if err != nil {
-			stopWithError("otp_sms_interval_sec parameter is not a number")
+			stopWithError("`otp_sms_interval_sec` parameter is not a number")
 		}
 		if otpValue > 300 || otpValue <= 60 {
-			stopWithError("otp_sms_interval_sec parameter must be <300 and >=60")
+			stopWithError("`otp_sms_interval_sec` parameter must be <300 and >=60")
 		}
 	}
 }
@@ -75,15 +76,18 @@ func validateServer(server []parameter) {
 	portParameter := findParameter(server, "port")
 	if portParameter.name == "" {
 		stopWithError("port parameter is required in server section")
-	} else {
-		portRegex := regexp.MustCompile(`([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])`)
-		if portRegex.ReplaceAllString(portParameter.value, "") != "" {
-			stopWithError("port parameter is not valid number")
-		}
+	}
+	portRegex := regexp.MustCompile(`([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])`)
+	if portRegex.ReplaceAllString(portParameter.value, "") != "" {
+		stopWithError("port parameter is not valid number")
 	}
 }
-func removeComment(inputString string) string {
-	return regexp.MustCompile(`(?m)#(.*)`).ReplaceAllString(inputString, "")
+func getYamlContent(fileName string) string {
+	fileContent, err := os.ReadFile(fileName)
+	if err != nil {
+		stopWithError(fileName + " file not found")
+	}
+	return regexp.MustCompile(`(?m)#(.*)`).ReplaceAllString(string(fileContent), "")
 }
 
 func findSections(inputString string) map[string][]parameter {
